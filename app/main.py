@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 # Create FastAPI app
 app = FastAPI(
     title="Assura API",
-    description="Invisible Insurance Assistant Backend",
+    description="Assistant Invisible pour l'Assurance - Backend",
     version="0.1.0"
 )
 
@@ -40,9 +40,9 @@ app.include_router(incidents.router)
 
 @app.get("/")
 async def root():
-    """Health check endpoint."""
+    """Point de contrôle de santé."""
     return {
-        "status": "healthy",
+        "statut": "opérationnel",
         "service": "Assura API",
         "version": "0.1.0"
     }
@@ -50,13 +50,13 @@ async def root():
 
 @app.get("/health")
 async def health():
-    """Detailed health check."""
+    """Contrôle de santé détaillé."""
     return {
-        "status": "healthy",
-        "environment": settings.environment
+        "statut": "opérationnel",
+        "environnement": settings.environment
     }
 
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=5000)

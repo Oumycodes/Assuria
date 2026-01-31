@@ -22,15 +22,15 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("Assura Backend - MVP Mode")
+    print("Assura Backend - Mode MVP")
     print("=" * 60)
-    print("✓ In-memory database (no Supabase)")
-    print("✓ No-op encryption (no Fernet key needed)")
-    print("✓ Synchronous workers (no Redis/Celery)")
-    print("✓ Mock authentication (any token works)")
+    print("✓ Base de données en mémoire (pas de Supabase)")
+    print("✓ Chiffrement désactivé (pas de clé Fernet)")
+    print("✓ Workers synchrones (pas de Redis/Celery)")
+    print("✓ Authentification simulée (tout token accepté)")
     print("")
-    print("API available at: http://localhost:8000")
-    print("API docs at: http://localhost:8000/docs")
+    print("API disponible : http://0.0.0.0:5000")
+    print("Documentation API : http://0.0.0.0:5000/docs")
     print("=" * 60)
     print()
     
@@ -38,7 +38,7 @@ if __name__ == "__main__":
         uvicorn.run(
             "app.main:app",
             host="0.0.0.0",
-            port=3000,
+            port=5000,
             reload=True,
             log_level="info"
         )

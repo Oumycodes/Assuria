@@ -11,8 +11,11 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Initialize Claude client
-_client = Anthropic(api_key=settings.anthropic_api_key)
+# Initialize Claude client (uses Replit AI Integrations if available)
+_client = Anthropic(
+    api_key=settings.anthropic_api_key,
+    base_url=settings.anthropic_base_url
+) if settings.anthropic_base_url else Anthropic(api_key=settings.anthropic_api_key)
 
 # Strict JSON schema for incident extraction
 EXTRACTION_SCHEMA = {
@@ -74,7 +77,7 @@ Return ONLY the JSON object:"""
     try:
         # Call Claude API
         message = _client.messages.create(
-            model="claude-3-5-sonnet-20241022",
+            model="claude-sonnet-4-5",
             max_tokens=1024,
             temperature=0.1,  # Low temperature for consistent extraction
             messages=[

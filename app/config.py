@@ -20,8 +20,9 @@ class Settings(BaseSettings):
     # Encryption (optional for MVP - no-op encryption used when use_memory_db=True)
     encryption_key: str = "dummy-encryption-key-32-bytes-long!!"  # Not used in MVP mode
     
-    # Anthropic Claude (optional for MVP - can be mocked)
-    anthropic_api_key: str = "dummy-key"
+    # Anthropic Claude (uses Replit AI Integrations)
+    anthropic_api_key: str = os.getenv("AI_INTEGRATIONS_ANTHROPIC_API_KEY", "dummy-key")
+    anthropic_base_url: Optional[str] = os.getenv("AI_INTEGRATIONS_ANTHROPIC_BASE_URL", None)
     
     # Celery/Redis (optional for MVP)
     redis_url: str = "redis://localhost:6379/0"
