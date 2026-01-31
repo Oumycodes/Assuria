@@ -1,9 +1,9 @@
 """
 Field-level encryption service using Fernet (symmetric encryption).
 Encrypts PII before storage, decrypts when needed.
+For MVP mode, uses no-op encryption (returns data unchanged).
 """
 
-from cryptography.fernet import Fernet
 from app.config import settings
 import base64
 import logging
@@ -11,25 +11,40 @@ from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
-# Initialize Fernet cipher
-try:
-    _fernet = Fernet(settings.encryption_key.encode())
-except Exception as e:
-    logger.error(f"Failed to initialize encryption: {e}")
-    raise
+# Check if we're in MVP mode
+_use_mvp_encryption = settings.use_memory_db
+
+# Initialize Fernet cipher only if not in MVP mode
+_fernet = None
+if not _use_mvp_encryption:
+    try:
+        from cryptography.fernet import Fernet
+        _fernet = Fernet(settings.encryption_key.encode())
+        logger.info("Fernet encryption initialized")
+    except Exception as e:
+        logger.warning(f"Failed to initialize Fernet encryption, using MVP mode: {e}")
+        _use_mvp_encryption = True
+
+if _use_mvp_encryption:
+    logger.info("Using no-op encryption (MVP mode)")
 
 
 def encrypt_field(value: str) -> str:
     """
     Encrypt a string field (PII) before storage.
+    In MVP mode, returns value unchanged (no-op).
     
     Args:
         value: Plain text string to encrypt
         
     Returns:
-        Base64-encoded encrypted string
+        Encrypted string (or unchanged in MVP mode)
     """
     if not value:
+        return value
+    
+    # MVP mode: no-op encryption
+    if _use_mvp_encryption or _fernet is None:
         return value
     
     try:
@@ -43,14 +58,19 @@ def encrypt_field(value: str) -> str:
 def decrypt_field(encrypted_value: str) -> str:
     """
     Decrypt a field after retrieval from database.
+    In MVP mode, returns value unchanged (no-op).
     
     Args:
-        encrypted_value: Base64-encoded encrypted string
+        encrypted_value: Base64-encoded encrypted string (or plain text in MVP mode)
         
     Returns:
-        Decrypted plain text string
+        Decrypted plain text string (or unchanged in MVP mode)
     """
     if not encrypted_value:
+        return encrypted_value
+    
+    # MVP mode: no-op decryption
+    if _use_mvp_encryption or _fernet is None:
         return encrypted_value
     
     try:

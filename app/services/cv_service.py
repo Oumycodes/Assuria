@@ -1,24 +1,51 @@
 """
 Computer Vision service for analyzing images, PDFs, and videos.
 Extracts text (OCR), detects objects/damage, and provides metadata.
+All dependencies are optional for MVP mode.
 """
 
 import logging
 from typing import Dict, Any, List, Optional, BinaryIO
-from PIL import Image
-import pytesseract
-import PyPDF2
 import io
 import json
-import cv2
-import numpy as np
 
 logger = logging.getLogger(__name__)
+
+# Optional imports - gracefully handle missing dependencies
+try:
+    from PIL import Image
+    PIL_AVAILABLE = True
+except ImportError:
+    PIL_AVAILABLE = False
+    logger.warning("PIL/Pillow not available - image processing disabled")
+
+try:
+    import pytesseract
+    TESSERACT_AVAILABLE = True
+except ImportError:
+    TESSERACT_AVAILABLE = False
+    logger.warning("pytesseract not available - OCR disabled")
+
+try:
+    import PyPDF2
+    PDF2_AVAILABLE = True
+except ImportError:
+    PDF2_AVAILABLE = False
+    logger.warning("PyPDF2 not available - PDF processing disabled")
+
+try:
+    import cv2
+    import numpy as np
+    CV2_AVAILABLE = True
+except ImportError:
+    CV2_AVAILABLE = False
+    logger.warning("OpenCV not available - video processing disabled")
 
 
 def analyze_image(image_data: bytes, filename: str) -> Dict[str, Any]:
     """
     Analyze an image file: OCR text extraction and basic object detection.
+    Works even if CV dependencies are missing (returns basic metadata).
     
     Args:
         image_data: Raw image bytes
@@ -27,44 +54,57 @@ def analyze_image(image_data: bytes, filename: str) -> Dict[str, Any]:
     Returns:
         Dictionary with extracted metadata and text
     """
+    # If dependencies not available, return basic info
+    if not PIL_AVAILABLE:
+        return {
+            "type": "image",
+            "filename": filename,
+            "error": "PIL/Pillow not available",
+            "confidence": 0.0
+        }
+    
     try:
         # Load image
         image = Image.open(io.BytesIO(image_data))
-        image_array = np.array(image)
         
-        # Convert to RGB if needed
-        if len(image_array.shape) == 3 and image_array.shape[2] == 4:
-            image = image.convert('RGB')
-            image_array = np.array(image)
+        # Get dimensions
+        width, height = image.size
         
-        # OCR text extraction
+        # OCR text extraction (if available)
         ocr_text = ""
-        try:
-            ocr_text = pytesseract.image_to_string(image, lang='eng')
-            logger.info(f"Extracted {len(ocr_text)} characters from image via OCR")
-        except Exception as e:
-            logger.warning(f"OCR failed for {filename}: {e}")
-        
-        # Basic image analysis
-        height, width = image_array.shape[:2]
+        if TESSERACT_AVAILABLE:
+            try:
+                ocr_text = pytesseract.image_to_string(image, lang='eng')
+                logger.info(f"Extracted {len(ocr_text)} characters from image via OCR")
+            except Exception as e:
+                logger.warning(f"OCR failed for {filename}: {e}")
+        else:
+            logger.info("OCR not available - skipping text extraction")
         
         # Detect document types based on content
         documents_detected = []
-        ocr_lower = ocr_text.lower()
+        if ocr_text:
+            ocr_lower = ocr_text.lower()
+            
+            if any(keyword in ocr_lower for keyword in ['police', 'report', 'incident']):
+                documents_detected.append('police_report')
+            if any(keyword in ocr_lower for keyword in ['medical', 'hospital', 'doctor']):
+                documents_detected.append('medical_record')
+            if any(keyword in ocr_lower for keyword in ['invoice', 'receipt', 'bill']):
+                documents_detected.append('receipt')
+            if any(keyword in ocr_lower for keyword in ['license', 'driving', 'permit']):
+                documents_detected.append('license')
+            if any(keyword in ocr_lower for keyword in ['insurance', 'policy', 'coverage']):
+                documents_detected.append('insurance_document')
         
-        if any(keyword in ocr_lower for keyword in ['police', 'report', 'incident']):
-            documents_detected.append('police_report')
-        if any(keyword in ocr_lower for keyword in ['medical', 'hospital', 'doctor']):
-            documents_detected.append('medical_record')
-        if any(keyword in ocr_lower for keyword in ['invoice', 'receipt', 'bill']):
-            documents_detected.append('receipt')
-        if any(keyword in ocr_lower for keyword in ['license', 'driving', 'permit']):
-            documents_detected.append('license')
-        if any(keyword in ocr_lower for keyword in ['insurance', 'policy', 'coverage']):
-            documents_detected.append('insurance_document')
-        
-        # Basic damage/object detection (simplified - can be enhanced with ML models)
-        has_damage_indicators = detect_damage_indicators(image_array)
+        # Basic damage/object detection (if OpenCV available)
+        has_damage_indicators = False
+        if CV2_AVAILABLE:
+            try:
+                image_array = np.array(image)
+                has_damage_indicators = detect_damage_indicators(image_array)
+            except Exception as e:
+                logger.warning(f"Damage detection failed: {e}")
         
         return {
             "type": "image",
@@ -89,6 +129,7 @@ def analyze_image(image_data: bytes, filename: str) -> Dict[str, Any]:
 def analyze_pdf(pdf_data: bytes, filename: str) -> Dict[str, Any]:
     """
     Analyze a PDF file: extract text and metadata.
+    Works even if PyPDF2 is not available (returns basic metadata).
     
     Args:
         pdf_data: Raw PDF bytes
@@ -97,6 +138,14 @@ def analyze_pdf(pdf_data: bytes, filename: str) -> Dict[str, Any]:
     Returns:
         Dictionary with extracted text and metadata
     """
+    if not PDF2_AVAILABLE:
+        return {
+            "type": "pdf",
+            "filename": filename,
+            "error": "PyPDF2 not available",
+            "confidence": 0.0
+        }
+    
     try:
         pdf_file = io.BytesIO(pdf_data)
         pdf_reader = PyPDF2.PdfReader(pdf_file)
@@ -114,16 +163,17 @@ def analyze_pdf(pdf_data: bytes, filename: str) -> Dict[str, Any]:
         
         # Detect document types
         documents_detected = []
-        text_lower = full_text.lower()
-        
-        if any(keyword in text_lower for keyword in ['police', 'report', 'incident']):
-            documents_detected.append('police_report')
-        if any(keyword in text_lower for keyword in ['medical', 'hospital', 'doctor']):
-            documents_detected.append('medical_record')
-        if any(keyword in text_lower for keyword in ['invoice', 'receipt', 'bill']):
-            documents_detected.append('receipt')
-        if any(keyword in text_lower for keyword in ['insurance', 'policy', 'coverage']):
-            documents_detected.append('insurance_document')
+        if full_text:
+            text_lower = full_text.lower()
+            
+            if any(keyword in text_lower for keyword in ['police', 'report', 'incident']):
+                documents_detected.append('police_report')
+            if any(keyword in text_lower for keyword in ['medical', 'hospital', 'doctor']):
+                documents_detected.append('medical_record')
+            if any(keyword in text_lower for keyword in ['invoice', 'receipt', 'bill']):
+                documents_detected.append('receipt')
+            if any(keyword in text_lower for keyword in ['insurance', 'policy', 'coverage']):
+                documents_detected.append('insurance_document')
         
         return {
             "type": "pdf",
@@ -149,6 +199,7 @@ def analyze_video(video_data: bytes, filename: str) -> Dict[str, Any]:
     Analyze a video file: extract frames and perform basic analysis.
     Note: Full video analysis is computationally expensive.
     This extracts key frames and performs basic detection.
+    Works even if OpenCV is not available (returns basic metadata).
     
     Args:
         video_data: Raw video bytes
@@ -157,6 +208,14 @@ def analyze_video(video_data: bytes, filename: str) -> Dict[str, Any]:
     Returns:
         Dictionary with extracted metadata
     """
+    if not CV2_AVAILABLE:
+        return {
+            "type": "video",
+            "filename": filename,
+            "error": "OpenCV not available",
+            "confidence": 0.0
+        }
+    
     try:
         # Save to temporary file for OpenCV
         import tempfile
@@ -190,20 +249,21 @@ def analyze_video(video_data: bytes, filename: str) -> Dict[str, Any]:
                     break
                 
                 if frame_num % 30 == 0:  # Sample every 30 frames
-                    # Convert to PIL Image for OCR
-                    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                    pil_image = Image.fromarray(frame_rgb)
-                    
-                    # Basic OCR on frame
-                    try:
-                        ocr_text = pytesseract.image_to_string(pil_image, lang='eng')
-                        if ocr_text.strip():
-                            key_frames.append({
-                                "frame": frame_num,
-                                "ocr_text": ocr_text[:500]  # Limit text length
-                            })
-                    except:
-                        pass
+                    # Convert to PIL Image for OCR (if available)
+                    if PIL_AVAILABLE and TESSERACT_AVAILABLE:
+                        try:
+                            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                            pil_image = Image.fromarray(frame_rgb)
+                            
+                            # Basic OCR on frame
+                            ocr_text = pytesseract.image_to_string(pil_image, lang='eng')
+                            if ocr_text.strip():
+                                key_frames.append({
+                                    "frame": frame_num,
+                                    "ocr_text": ocr_text[:500]  # Limit text length
+                                })
+                        except Exception as e:
+                            logger.warning(f"OCR on frame {frame_num} failed: {e}")
                 
                 frame_num += 1
                 
@@ -240,10 +300,11 @@ def analyze_video(video_data: bytes, filename: str) -> Dict[str, Any]:
         }
 
 
-def detect_damage_indicators(image_array: np.ndarray) -> bool:
+def detect_damage_indicators(image_array) -> bool:
     """
     Basic damage detection using edge detection and color analysis.
     This is a simplified version - can be enhanced with trained ML models.
+    Works only if OpenCV is available.
     
     Args:
         image_array: NumPy array of image
@@ -251,6 +312,9 @@ def detect_damage_indicators(image_array: np.ndarray) -> bool:
     Returns:
         True if damage indicators detected, False otherwise
     """
+    if not CV2_AVAILABLE:
+        return False
+    
     try:
         # Convert to grayscale
         if len(image_array.shape) == 3:

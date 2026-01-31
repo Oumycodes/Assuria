@@ -9,15 +9,47 @@ from app.models import IncidentStatus
 import json
 import logging
 from datetime import datetime
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 logger = logging.getLogger(__name__)
 
+# Only register as Celery task if Celery is available
+if celery_app is not None:
+    task_decorator = celery_app.task(name="process_incident", bind=True)
+else:
+    # Dummy decorator for when Celery is not available
+    def task_decorator(func):
+        return func
 
-@celery_app.task(name="process_incident", bind=True)
-def process_incident_async(self, incident_id: str):
+
+def process_incident_sync(incident_id: str):
     """
-    Background task to process an incident after initial extraction.
+    Synchronous version of process_incident for MVP/testing.
+    Can be called directly without Celery.
+    """
+    return _process_incident(incident_id)
+
+
+@task_decorator
+def process_incident_async(*args, **kwargs):
+    """
+    Celery task wrapper (or direct call if Celery not available).
+    Handles both Celery task signature and direct call.
+    """
+    # Extract incident_id from args/kwargs
+    if args:
+        incident_id = args[0]
+    elif 'incident_id' in kwargs:
+        incident_id = kwargs['incident_id']
+    else:
+        raise ValueError("incident_id is required")
+    
+    return _process_incident(incident_id)
+
+
+def _process_incident(incident_id: str):
+    """
+    Process an incident after initial extraction.
     
     Actions:
     1. Verify coverage (check if incident type is covered)

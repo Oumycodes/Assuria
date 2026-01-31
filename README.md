@@ -42,13 +42,32 @@ A production-ready backend MVP for an invisible insurance assistant that process
 
 ## Setup
 
+### MVP Mode (No Database Required) 🚀
+
+For quick testing without Supabase:
+
+```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Run MVP server (in-memory database)
+python run_mvp.py
+
+# Or use uvicorn directly
+uvicorn app.main:app --reload
+```
+
+See [MVP_SETUP.md](MVP_SETUP.md) for detailed MVP instructions.
+
+### Full Setup (With Supabase)
+
 ### 1. Prerequisites
 
 - Python 3.10+
-- Supabase account and project
-- Redis (for Celery)
-- Anthropic API key
-- Tesseract OCR (for image text extraction)
+- Supabase account and project (optional for MVP)
+- Redis (for Celery, optional for MVP)
+- Anthropic API key (optional - can be mocked)
+- Tesseract OCR (for image text extraction, optional)
 
 ### 2. Install Dependencies
 

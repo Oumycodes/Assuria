@@ -17,7 +17,7 @@ from app.services.pii_service import pseudonymize_pii, extract_pii_fields
 from app.services.llm_service import extract_incident_data, merge_extractions
 from app.services.cv_service import process_attachments
 from app.models import IncidentStatus, IncidentResponse
-from app.workers.incident_worker import process_incident_async
+from app.workers.incident_worker import process_incident_async, process_incident_sync
 
 logger = logging.getLogger(__name__)
 
@@ -131,8 +131,19 @@ async def create_incident(
         }
         supabase.table("claim_events").insert(timeline_event).execute()
         
-        # Step 9: Trigger background worker (async)
-        process_incident_async.delay(incident_id)
+        # Step 9: Trigger background worker (async or sync for MVP)
+        try:
+            # Try async (Celery) if available
+            if hasattr(process_incident_async, 'delay'):
+                process_incident_async.delay(incident_id)
+            else:
+                # Fallback to sync processing for MVP
+                logger.info("Processing incident synchronously (MVP mode)")
+                process_incident_sync(incident_id)
+        except Exception as e:
+            # Fallback to sync processing for MVP
+            logger.info(f"Celery not available, processing synchronously: {e}")
+            process_incident_sync(incident_id)
         
         # Return response
         return {
