@@ -15,7 +15,7 @@ pydantic==2.5.0
 pydantic-settings==2.1.0
 pgvector==0.2.4
 numpy==1.26.2
-torch==2.1.1+cpu
+torch==2.10.0+cpu
 torchvision==0.16.1+cpu
 -f https://download.pytorch.org/whl/torch_stable.html
 
