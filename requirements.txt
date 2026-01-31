@@ -1,21 +1,11 @@
 fastapi==0.104.1
-uvicorn[standard]==0.24.0
+uvicorn==0.24.0
 python-dotenv==1.0.0
+cryptography==41.0.7
 supabase==2.0.0
 postgrest==0.13.0
-cryptography==41.0.7
 anthropic==0.7.8
 celery==5.3.4
 redis==5.0.1
-opencv-python-headless==4.8.1.78
-pytesseract==0.3.10
-PyPDF2==3.0.1
-python-multipart==0.0.6
-pydantic==2.5.0
-pydantic-settings==2.1.0
-pgvector==0.2.4
-numpy==1.26.2
-torch==2.10.0+cpu
-torchvision==0.16.1+cpu
--f https://download.pytorch.org/whl/torch_stable.html
+
 
